@@ -13,7 +13,7 @@ router.register(r'group', GroupViewSet, basename='group')
 router.register(r'follow', FollowViewSet, basename='follow')
 
 urlpatterns = [
-    path('token/', jwt_views.TokenObtainPairView.as_view()),
-    path('token/refresh/', jwt_views.TokenRefreshView.as_view()),
-    path('', include(router.urls))
+    path('v1/token/', jwt_views.TokenObtainPairView.as_view()),
+    path('v1/token/refresh/', jwt_views.TokenRefreshView.as_view()),
+    path('v1/', include(router.urls))
 ]

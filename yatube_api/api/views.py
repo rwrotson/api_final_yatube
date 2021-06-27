@@ -2,6 +2,9 @@ from rest_framework import viewsets, mixins, filters
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.db import IntegrityError
+from rest_framework.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Post, Group, Follow
 from .serializers import PostSerializer, CommentSerializer
@@ -10,15 +13,11 @@ from .permissions import IsOwnerOrReadOnly
 
 
 class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = (IsOwnerOrReadOnly, IsAuthenticatedOrReadOnly)
-
-    def get_queryset(self):
-        queryset = Post.objects.all()
-        group = self.request.query_params.get('group')
-        if group is not None:
-            queryset = queryset.filter(group__id=group)
-        return queryset
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('group',)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -37,8 +36,11 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user, post=post)
 
 
-class ListCreateMixin(mixins.ListModelMixin, mixins.CreateModelMixin,
-                      viewsets.GenericViewSet):
+class ListCreateMixin(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet
+):
     pass
 
 
@@ -58,4 +60,9 @@ class FollowViewSet(ListCreateMixin):
         return Follow.objects.filter(following=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        try:
+            serializer.save(user=self.request.user)
+        except IntegrityError:
+            raise ValidationError(
+                'The fields user, following must make a unique set.'
+            )
